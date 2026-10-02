@@ -32,6 +32,27 @@ enum ArticleStatus {
   PUBLISHED
 }
 
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+}
+
+enum ApplicationStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -195,4 +216,45 @@ model ConversationMessage {
   toolsUsed      String[]
   createdAt      DateTime     @default(now())
   @@index([conversationId])
+}
+
+model JobPosting {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  location        String
+  employmentType  EmploymentType
+  summary         String
+  responsibilities String
+  requirements    String
+  status          JobStatus      @default(DRAFT)
+  publishedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  applications JobApplication[]
+
+  @@index([status, publishedAt])
+  @@index([createdAt])
+}
+
+model JobApplication {
+  id           String            @id @default(cuid())
+  jobId        String
+  job          JobPosting        @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  name         String
+  email        String
+  phone        String
+  portfolioUrl String?
+  message      String?
+
+  status       ApplicationStatus @default(NEW)
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([jobId, createdAt])
+  @@index([status, createdAt])
+  @@index([email])
 }

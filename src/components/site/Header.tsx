@@ -20,7 +20,6 @@ const primaryNav = [
 const exploreNav = [
   { href: "/cerita", label: "Cerita Tehyan" },
   { href: "/teh-kami", label: "Teh Kami" },
-  { href: "/membership", label: "Membership" },
   { href: "/karier", label: "Karier" },
 ] as const;
 
