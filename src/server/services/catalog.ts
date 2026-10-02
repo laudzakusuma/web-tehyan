@@ -1,6 +1,13 @@
 import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/server/db/client";
+import type {
+  PromotionInput,
+} from "@/lib/promotion-contract";
+
+import {
+  promotionEndsAt,
+} from "@/lib/promotion-contract";
 
 export type ProductFilters = {
   category?: string;
@@ -66,3 +73,158 @@ export const getPromotions = (now = new Date(), limit = 5) => db.promotion.findM
   take: Math.max(1, Math.min(10, limit)),
 });
 export const rupiah = (n: number) => "Rp" + n.toLocaleString("id-ID");
+
+export type PromotionServiceErrorCode =
+  | "PROMOTION_NOT_FOUND"
+  | "PROMOTION_DELETE_ACTIVE";
+
+export class PromotionServiceError extends Error {
+  constructor(
+    public readonly code:
+      PromotionServiceErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name =
+      "PromotionServiceError";
+  }
+}
+
+export const listAdminPromotions =
+  () =>
+    db.promotion.findMany({
+      orderBy: [
+        {
+          active: "desc",
+        },
+        {
+          endsAt: "asc",
+        },
+        {
+          title: "asc",
+        },
+      ],
+
+      select: {
+        id: true,
+        title: true,
+        detail: true,
+        active: true,
+        endsAt: true,
+      },
+    });
+
+export async function createPromotion(
+  input: PromotionInput,
+) {
+  return db.promotion.create({
+    data: {
+      title: input.title.trim(),
+      detail:
+        input.detail.trim(),
+      active: input.active,
+      endsAt:
+        promotionEndsAt(
+          input.endsOn,
+        ),
+    },
+
+    select: {
+      id: true,
+      title: true,
+      detail: true,
+      active: true,
+      endsAt: true,
+    },
+  });
+}
+
+export async function updatePromotion(
+  id: string,
+  input: PromotionInput,
+) {
+  const result =
+    await db.promotion.updateMany({
+      where: {
+        id,
+      },
+
+      data: {
+        title: input.title.trim(),
+        detail:
+          input.detail.trim(),
+        active: input.active,
+        endsAt:
+          promotionEndsAt(
+            input.endsOn,
+          ),
+      },
+    });
+
+  if (result.count !== 1) {
+    throw new PromotionServiceError(
+      "PROMOTION_NOT_FOUND",
+      "Promo tidak ditemukan.",
+    );
+  }
+
+  return db.promotion.findUniqueOrThrow({
+    where: {
+      id,
+    },
+
+    select: {
+      id: true,
+      title: true,
+      detail: true,
+      active: true,
+      endsAt: true,
+    },
+  });
+}
+
+export async function deletePromotion(
+  id: string,
+) {
+  const promotion =
+    await db.promotion.findUnique({
+      where: {
+        id,
+      },
+
+      select: {
+        id: true,
+        active: true,
+      },
+    });
+
+  if (!promotion) {
+    throw new PromotionServiceError(
+      "PROMOTION_NOT_FOUND",
+      "Promo tidak ditemukan.",
+    );
+  }
+
+  /*
+   * Promo aktif tidak boleh langsung
+   * dihapus. Nonaktifkan dahulu agar
+   * salah klik admin tidak langsung
+   * menghapus konten publik.
+   */
+  if (promotion.active) {
+    throw new PromotionServiceError(
+      "PROMOTION_DELETE_ACTIVE",
+      "Promo aktif harus dinonaktifkan sebelum dihapus.",
+    );
+  }
+
+  await db.promotion.delete({
+    where: {
+      id,
+    },
+  });
+
+  return {
+    id,
+  };
+}

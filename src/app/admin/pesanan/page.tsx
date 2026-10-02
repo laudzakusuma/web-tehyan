@@ -14,6 +14,12 @@ import {
   OrderStatusActions,
 } from "@/features/admin/OrderStatusActions";
 
+import Link from "next/link";
+
+import {
+  AdminLogoutButton,
+} from "@/features/admin/AdminLogoutButton";
+
 export const dynamic =
   "force-dynamic";
 
@@ -76,10 +82,20 @@ export default async function AdminOrdersPage() {
             </p>
           </div>
 
-          <p className="text-sm text-seduh-soft">
-            {orders.length} pesanan
-            terbaru
-          </p>
+          <div className="flex flex-wrap items-center gap-5">
+            <p className="text-sm text-seduh-soft">
+                {orders.length} pesanan terbaru
+            </p>
+
+            <Link
+                href="/admin/promo"
+                className="border-b border-transparent pb-1 text-sm hover:border-seduh"
+            >
+                Promo
+            </Link>
+
+            <AdminLogoutButton />
+            </div>
         </div>
       </header>
 
