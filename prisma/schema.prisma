@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum FulfillmentType {
+  PICKUP
+  DELIVERY
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  orders       Order[]
+  conversations Conversation[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  sort     Int       @default(0)
+  products Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  price       Int      // Rupiah
+  sweetness   Int      @default(2) // 0-3, dipakai agen untuk rekomendasi
+  isBestSeller Boolean @default(false)
+  available   Boolean  @default(true)
+  imageUrl    String?
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  items       OrderItem[]
+  @@index([categoryId])
+  @@index([available])
+}
+
+model Order {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  userId      String?
+  user        User?           @relation(fields: [userId], references: [id])
+  customerName String
+  phone       String
+  type        FulfillmentType
+  address     String?
+  notes       String?
+  status      OrderStatus     @default(PENDING)
+  subtotal    Int
+  discount    Int             @default(0)
+  fee         Int             @default(0)
+  total       Int
+  createdAt   DateTime        @default(now())
+  items       OrderItem[]
+  history     OrderStatusHistory[]
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  unitPrice Int
+  quantity  Int
+  options   Json?   // gula, es, ukuran, topping
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+  @@index([orderId])
+}
+
+model Promotion {
+  id       String   @id @default(cuid())
+  title    String
+  detail   String
+  active   Boolean  @default(true)
+  endsAt   DateTime?
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  slug        String?  @unique
+  name        String
+  city        String   @default("Depok")
+  address     String
+  phone       String
+  description String?
+  imageUrl    String?
+  mapsUrl     String?
+  facilities  String[] @default([])
+  featured    Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  hours StoreHour[]
+
+  @@index([city])
+  @@index([active, featured])
+}
+
+model StoreHour {
+  id       String @id @default(cuid())
+  storeId  String
+  store    Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  weekday  Int
+  openMin  Int
+  closeMin Int
+
+  @@unique([storeId, weekday])
+  @@index([storeId])
+}
+
+model Faq {
+  id       String @id @default(cuid())
+  question String
+  answer   String
+  topic    String @default("umum")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  messages  ConversationMessage[]
+}
+
+model ConversationMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  toolsUsed      String[]
+  createdAt      DateTime     @default(now())
+  @@index([conversationId])
+}

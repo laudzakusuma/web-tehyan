@@ -1,0 +1,9 @@
+node_modules
+.next
+.next-outlet
+.next-photos
+.next-photos-dev
+.next-ai
+.next-ai-qa
+.qa
+.env
