@@ -1,7 +1,12 @@
 // Semua data contoh ada di sini; ganti dengan data asli bisnis.
-import { PrismaClient, Role } from "@prisma/client";
+import {
+  ArticleStatus,
+  PrismaClient,
+  Role,
+} from "@prisma/client";
 import { hashPassword } from "../src/server/auth/password";
 import { developmentPhotoPath } from "../src/lib/product-photography";
+
 
 
 const db = new PrismaClient();
@@ -141,6 +146,36 @@ async function main() {
     if (imageUrl) await db.product.updateMany({ where: { slug, imageUrl: null }, data: { imageUrl } });
   }
   await seedOutlets();
+    if (!(await db.article.count())) {
+    await db.article.create({
+      data: {
+        slug:
+          "mengapa-teh-selalu-punya-tempat",
+
+        title:
+          "Mengapa Teh Selalu Punya Tempat",
+
+        excerpt:
+          "Tentang jeda, percakapan, dan secangkir teh yang tidak pernah benar-benar terburu-buru.",
+
+        content: [
+          "Ada minuman yang dibuat untuk membangunkan hari. Ada pula yang terasa seperti mengajak hari berjalan sedikit lebih pelan.",
+          "",
+          "Bagi kami, teh hidup di antara keduanya. Ia bisa hadir saat pagi baru dimulai, menemani percakapan panjang, atau menjadi alasan sederhana untuk duduk sebentar.",
+          "",
+          "Kedai Tehyan lahir dari gagasan bahwa secangkir teh tidak perlu dibuat rumit untuk terasa berarti. Yang penting adalah racikan yang jujur, suasana yang hangat, dan ruang untuk menikmati waktu.",
+          "",
+          "Karena kadang yang kita cari bukan hanya sesuatu untuk diminum, tetapi alasan untuk berhenti sebentar.",
+        ].join("\n"),
+
+        status:
+          ArticleStatus.PUBLISHED,
+
+        publishedAt:
+          new Date(),
+      },
+    });
+  }
   if (!(await db.promotion.count()))
     await db.promotion.create({ data: { title: "Beli 2 Teh Susu, gratis 1 Pisang Goreng", detail: "Berlaku Senin–Kamis, selama persediaan ada." } });
   if (!(await db.faq.count()))

@@ -27,6 +27,11 @@ enum FulfillmentType {
   DELIVERY
 }
 
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -114,6 +119,22 @@ model Promotion {
   detail   String
   active   Boolean  @default(true)
   endsAt   DateTime?
+}
+
+model Article {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  title         String
+  excerpt       String
+  content       String
+  coverImageUrl String?
+  status        ArticleStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([createdAt])
 }
 
 model Store {

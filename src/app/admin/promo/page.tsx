@@ -94,6 +94,13 @@ export default async function AdminPromoPage() {
                 Lihat halaman publik
             </Link>
 
+            <Link
+              href="/admin/journal"
+              className="border-b border-transparent pb-1 text-sm hover:border-seduh"
+            >
+              Journal
+            </Link>
+
             <AdminLogoutButton />
             </nav>
         </div>
