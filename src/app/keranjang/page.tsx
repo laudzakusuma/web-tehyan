@@ -70,10 +70,19 @@ export default function CartPage() {
               <strong className="tabular-nums">{rupiah(subtotal)}</strong>
             </div>
             <p className="mt-3 text-sm text-seduh-soft">Ongkir dan promo akan dihitung di tahap checkout.</p>
-            <div className="mt-6 rounded-field border border-pasir bg-kertas p-4 text-sm text-seduh-soft">
-              Checkout sedang jadi tahap pengembangan berikutnya. Keranjang ini sudah siap dipakai untuk alur tersebut.
-            </div>
-            <Link href="/menu" className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-field border border-seduh px-4 hover:bg-seduh hover:text-gading">Tambah menu lain</Link>
+            <Link
+              href="/checkout"
+              className="mt-6 inline-flex h-12 w-full items-center justify-center bg-genteng px-5 text-kertas transition-colors hover:bg-genteng-deep"
+            >
+              Lanjut ke Checkout
+            </Link>
+
+            <Link
+              href="/menu"
+              className="mt-3 inline-flex h-11 w-full items-center justify-center border border-seduh px-4 transition-colors hover:bg-seduh hover:text-gading"
+            >
+              Tambah menu lain
+            </Link>
           </aside>
         </div>
       )}

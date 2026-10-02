@@ -1,6 +1,9 @@
 // Semua data contoh ada di sini; ganti dengan data asli bisnis.
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
+import { hashPassword } from "../src/server/auth/password";
 import { developmentPhotoPath } from "../src/lib/product-photography";
+
+
 const db = new PrismaClient();
 
 const categories = [
@@ -73,7 +76,59 @@ async function seedOutlets() {
   });
 }
 
+async function seedAdmin() {
+  const email =
+    process.env.ADMIN_EMAIL
+      ?.trim()
+      .toLowerCase();
+
+  const password =
+    process.env
+      .ADMIN_BOOTSTRAP_PASSWORD;
+
+  const name =
+    process.env.ADMIN_NAME
+      ?.trim() ||
+    "Admin Tehyan";
+
+  if (!email || !password) {
+    console.log(
+      "Admin bootstrap dilewati.",
+    );
+
+    return;
+  }
+
+  const passwordHash =
+    hashPassword(password);
+
+  await db.user.upsert({
+    where: {
+      email,
+    },
+
+    update: {
+      name,
+      passwordHash,
+      role: Role.ADMIN,
+    },
+
+    create: {
+      name,
+      email,
+      passwordHash,
+      role: Role.ADMIN,
+    },
+  });
+
+  console.log(
+    "Admin account siap.",
+  );
+}
+
 async function main() {
+  await seedAdmin();
+
   for (const c of categories) await db.category.upsert({ where: { slug: c.slug }, update: c, create: c });
   for (const [cat, slug, name, description, price, sweetness, isBestSeller] of products) {
     const category = await db.category.findUniqueOrThrow({ where: { slug: cat } });
