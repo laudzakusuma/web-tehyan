@@ -12,7 +12,7 @@ vi.mock("openai", async (importOriginal) => {
   return { ...original, default: MockClient };
 });
 
-import { completeAgentTurn, createProviderSession, PROVIDER_TIMEOUT_MS } from "./provider";
+import { completeAgentTurn, createProviderSession, FIRST_TURN_TIMEOUT_MS, PROVIDER_TIMEOUT_MS } from "./provider";
 
 const input = { messages: [{ role: "user" as const, content: "Ada teh?" }], tools: [], toolChoice: "required" as const, timeoutMs: 45_000 };
 
@@ -130,6 +130,65 @@ const httpError = (status: number, retryAfter?: string) => new APIError(status, 
   retryAfter === undefined ? {} : { "retry-after": retryAfter });
 
 describe("bounded provider resilience", () => {
+  it("cancels a timed-out first attempt and uses the fallback for its entire tool exchange", async () => {
+    vi.stubEnv("LLM_FALLBACK_MODEL", "fallback-model");
+    const onEvent = vi.fn();
+    const session = createProviderSession(onEvent);
+    const tool = { id: "call-fallback", type: "function" as const, function: { name: "searchProducts", arguments: "{}" },
+      extra_content: { google: { thought_signature: "fallback-signature" } } };
+    mocks.create.mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce({ choices: [{ message: { role: "assistant", tool_calls: [tool] } }] })
+      .mockResolvedValueOnce(completion);
+    const pending = completeAgentTurn({ ...input, session, timeoutMs: FIRST_TURN_TIMEOUT_MS });
+    await vi.advanceTimersByTimeAsync(PROVIDER_TIMEOUT_MS);
+    const result = await pending;
+    expect(result.tool_calls).toEqual([tool]);
+    expect(mocks.create.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ category: "TIMEOUT", decision: "fallback" }));
+
+    const messages = [...input.messages, { role: "assistant" as const, tool_calls: [tool] },
+      { role: "tool" as const, tool_call_id: tool.id, content: "{}" }];
+    await completeAgentTurn({ ...input, messages, toolChoice: "auto", session });
+    expect(mocks.create.mock.calls.map(([request]) => request.model)).toEqual(["test-only-model", "fallback-model", "fallback-model"]);
+    expect(mocks.create.mock.calls[2][0].messages).toBe(messages);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("caps the fallback by the remaining first-turn budget and never attempts it twice", async () => {
+    vi.stubEnv("LLM_FALLBACK_MODEL", "fallback-model");
+    mocks.create.mockImplementation(() => new Promise(() => {}));
+    const timeoutMs = PROVIDER_TIMEOUT_MS + 2_000;
+    const assertion = expect(completeAgentTurn({ ...input, timeoutMs })).rejects.toMatchObject({ code: "LLM_TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(timeoutMs);
+    await assertion;
+    expect(mocks.create).toHaveBeenCalledTimes(2);
+    expect(mocks.create.mock.calls[1][1]).toMatchObject({ timeout: 2_000, signal: { aborted: true } });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("keeps room for a fallback after slow capacity failures while honoring Retry-After", async () => {
+    vi.stubEnv("LLM_FALLBACK_MODEL", "fallback-model");
+    const response = new Promise((_, reject) => setTimeout(() => reject(httpError(503, "3")), 9_500));
+    mocks.create.mockRejectedValueOnce(httpError(503)).mockRejectedValueOnce(httpError(503))
+      .mockImplementationOnce(() => response).mockResolvedValueOnce(completion);
+    const pending = completeAgentTurn({ ...input, timeoutMs: FIRST_TURN_TIMEOUT_MS });
+    await vi.advanceTimersByTimeAsync(12_499);
+    expect(mocks.create).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toMatchObject({ content: "Jawaban uji." });
+    expect(mocks.create.mock.calls.at(-1)?.[0].model).toBe("fallback-model");
+  });
+
+  it("does not fall back on a timeout after the model has returned a tool call", async () => {
+    vi.stubEnv("LLM_FALLBACK_MODEL", "fallback-model");
+    mocks.create.mockImplementation(() => new Promise(() => {}));
+    const messages = [{ role: "tool" as const, tool_call_id: "fixture", content: "{}" }];
+    const assertion = expect(completeAgentTurn({ ...input, messages })).rejects.toMatchObject({ code: "LLM_TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(PROVIDER_TIMEOUT_MS);
+    await assertion;
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+  });
+
   it.each([429, 503])("recovers after HTTP %i with exponential backoff", async (status) => {
     const onEvent = vi.fn();
     mocks.create.mockRejectedValueOnce(httpError(status)).mockRejectedValueOnce(httpError(status)).mockResolvedValueOnce(completion);

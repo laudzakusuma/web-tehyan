@@ -10,7 +10,7 @@ vi.mock("./tools", () => ({
 }));
 
 import { runAgent, type ChatMsg } from "./runtime";
-import { AgentProviderError, completeAgentTurn, type ProviderMessage } from "./provider";
+import { AgentProviderError, completeAgentTurn, FIRST_TURN_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, type ProviderMessage } from "./provider";
 import { runTool } from "./tools";
 
 const complete = vi.mocked(completeAgentTurn);
@@ -48,8 +48,8 @@ describe("bounded agent orchestration", () => {
     complete.mockResolvedValueOnce(calls(call("budget", "searchProducts", '{"maxPrice":20000}'))).mockResolvedValueOnce(answer());
     const messages: ChatMsg[] = [...history, { role: "assistant", content: "Teh Lemon Madu tersedia." }, { role: "user", content: "Yang tadi berapa?" }];
     const result = await runAgent(messages, ctx);
-    expect(complete.mock.calls[0][0]).toMatchObject({ toolChoice: "required" });
-    expect(complete.mock.calls[1][0]).toMatchObject({ toolChoice: "auto" });
+    expect(complete.mock.calls[0][0]).toMatchObject({ toolChoice: "required", timeoutMs: FIRST_TURN_TIMEOUT_MS });
+    expect(complete.mock.calls[1][0]).toMatchObject({ toolChoice: "auto", timeoutMs: PROVIDER_TIMEOUT_MS });
     expect(complete.mock.calls[0][0].messages).toEqual(expect.arrayContaining(messages));
     expect(execute).toHaveBeenCalledWith("searchProducts", '{"maxPrice":20000}', ctx);
     expect(result).toMatchObject({ reply: "Teh Lemon Madu tersedia dengan harga Rp18.000.", toolsUsed: ["searchProducts"], actions: [] });

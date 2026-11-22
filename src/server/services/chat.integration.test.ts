@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 vi.mock("@/agents/runtime", () => ({ runAgent: vi.fn() }));
 import { runAgent } from "@/agents/runtime";
+import { AgentProviderError } from "@/agents/provider";
 import { db } from "@/server/db/client";
 import { conversationForToken, newChatToken } from "@/server/chat-security";
 import { getChatHistory, sendChatMessage } from "./chat";
@@ -54,9 +55,10 @@ suite("chat persistence against PostgreSQL (mock provider)", () => {
   it("keeps failed user turns retryable without duplicating history or releasing another worker's lease", async () => {
     const owner = newConversation();
     const input = { requestId: randomUUID(), message: "Menu apa?" };
-    vi.mocked(runAgent).mockRejectedValueOnce(new Error("simulated unavailable provider"));
-    await expect(sendChatMessage(owner, input)).rejects.toThrow("simulated");
+    vi.mocked(runAgent).mockRejectedValueOnce(new AgentProviderError("LLM_TIMEOUT"));
+    await expect(sendChatMessage(owner, input)).rejects.toMatchObject({ code: "LLM_TIMEOUT" });
     expect((await getChatHistory(owner)).pendingRequest).toEqual(input);
+    expect(await db.conversationMessage.count({ where: { conversationId: owner, role: "lock" } })).toBe(0);
     await expect(sendChatMessage(owner, { requestId: randomUUID(), message: "Pesan kedua" })).rejects.toMatchObject({ code: "REQUEST_CONFLICT" });
     await sendChatMessage(owner, input);
     expect((await getChatHistory(owner)).pendingRequest).toBeUndefined();
@@ -146,8 +148,10 @@ suite("chat persistence against PostgreSQL (mock provider)", () => {
       id: `${requestId}:1`, type: "ADD_TO_CART" as const,
       payload: { product: { id: "fixture-lemon", slug: "fixture-lemon", name: "Teh Lemon Fixture", price: 18000, imageUrl: null }, quantity: 2 },
     };
-    vi.mocked(runAgent).mockResolvedValueOnce({ reply: originalReply, actions: [action], toolsUsed: ["addToCart"], events: [] });
     const input = { requestId, message: "Tambahkan lemon dua." };
+    vi.mocked(runAgent).mockRejectedValueOnce(new AgentProviderError("LLM_TIMEOUT"))
+      .mockResolvedValueOnce({ reply: originalReply, actions: [action], toolsUsed: ["addToCart"], events: [] });
+    await expect(sendChatMessage(owner, input)).rejects.toMatchObject({ code: "LLM_TIMEOUT" });
     const live = await sendChatMessage(owner, input);
     expect(live.actions).toEqual([action]);
 
@@ -162,7 +166,7 @@ suite("chat persistence against PostgreSQL (mock provider)", () => {
     // A lost POST response can still be retried safely with the same action ID;
     // loading history does not mutate the stored idempotent response.
     expect(await sendChatMessage(owner, input)).toEqual(live);
-    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(runAgent).toHaveBeenCalledTimes(2);
   });
 
   it("caps context and returns history without replayable UI actions", async () => {

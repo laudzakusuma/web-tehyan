@@ -1,5 +1,14 @@
 # Development Log
 
+## 2026-11-22 — Production chat fallback and favicon
+
+- The deployed chat log showed that Gemini 3.8 Flash reached the first-round 12-second deadline. Direct synthetic probes against the same endpoint and model using the private local credential observed HTTP 503 for minimal and required-tool requests, and one minimal request timed out at 32 seconds. An extra sample with low reasoning also returned HTTP 503. These samples establish upstream instability, but do not isolate its cause or justify a longer primary attempt.
+- The configured Gemini 3.5 Flash-Lite fallback returned HTTP 200 for a minimal request (1.57 seconds), a required tool call (1.14 seconds), and a tool continuation (7.89 seconds). A read-only agent probe also found that backoff after repeated primary 503s could consume the old fallback window. The first turn now reserves time for one fallback after a primary deadline or exhausted capacity retries, honoring `Retry-After`. Each model keeps its 12-second cap. The 45-second agent deadline remains in place, and the chat route declares a 60-second function limit for request parsing and persistence overhead.
+- Model switching is limited to the initial turn before any tool runs. Tool continuations stay on the selected model. Timeout responses point to the existing same-request retry. Regression coverage checks cancellation, bounded fallback, provider error sanitization, and PostgreSQL recovery with stable cart action IDs.
+- Added `src/app/favicon.ico` in 16, 32, and 48 pixel sizes using the existing circled T header mark and theme colors. Next.js App Router serves the file and emits the icon metadata.
+- The patched agent switched to the fallback after a primary 503 and timeout, then answered with the database price in 28.02 seconds using a read-only Neon Production transaction and the private local Gemini credential. Vitest passed 209 tests in 28 files. TypeScript passed.
+- Database schema, migrations, seeds, and production configuration were unchanged.
+
 ## 2026-11-22 — Production Administrator Rotation Gate
 
 - Verified the Neon Production catalog contains exactly three demo products, two demo outlets, and one administrator. The four existing migrations remain applied. No seed or schema change was needed.

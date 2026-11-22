@@ -3,6 +3,7 @@ import { z } from "zod";
 import { boundedArray } from "@/lib/bounded-array";
 
 export const PROVIDER_TIMEOUT_MS = 12_000;
+export const FIRST_TURN_TIMEOUT_MS = 25_000;
 export const PROVIDER_MAX_ATTEMPTS = 3;
 
 type FailureCategory = "RATE_LIMIT" | "CAPACITY" | "AUTH" | "ACCESS" | "REQUEST" | "TIMEOUT" | "NETWORK" | "OTHER";
@@ -107,8 +108,11 @@ export async function completeAgentTurn(input: CompletionInput): Promise<Provide
   const session = input.session ?? createProviderSession();
   let model = session.model ?? primaryModel;
   let attempt = 1;
+  const started = Date.now();
   const timeoutMs = Math.max(1, Math.min(PROVIDER_TIMEOUT_MS, input.timeoutMs));
-  const deadline = Date.now() + timeoutMs;
+  const deadline = started + timeoutMs;
+  const switchable = fallbackModel && fallbackModel !== primaryModel && !input.messages.some(message =>
+    message.role === "tool" || message.role === "assistant" && !!message.tool_calls?.length);
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let backoffTimer: ReturnType<typeof setTimeout> | undefined;
@@ -147,12 +151,32 @@ export async function completeAgentTurn(input: CompletionInput): Promise<Provide
         const failure = classify(error, controller.signal.aborted);
         const retry = failure.transient && !session.fallbackUsed && attempt < PROVIDER_MAX_ATTEMPTS;
         // Switching after a successful completion could mix model-specific signatures.
-        // Never replay an earlier tool round in order to make fallback possible.
-        const fallback = failure.transient && !retry && !session.model && !session.fallbackUsed &&
-          !!fallbackModel && fallbackModel !== primaryModel && !input.messages.some(message =>
-            message.role === "tool" || message.role === "assistant" && !!message.tool_calls?.length);
+        const canSwitch = switchable && !session.model && !session.fallbackUsed;
+        const fallback = canSwitch && failure.transient && !retry;
         const delay = retry || fallback
           ? Math.max(500 * 2 ** (attempt - 1) * (1 + Math.random() * 0.5), retryAfterMs(error)) : 0;
+        const firstTurnDeadline = started + Math.min(FIRST_TURN_TIMEOUT_MS, input.timeoutMs);
+        const exhausted = failure.category === "TIMEOUT" && Date.now() >= deadline || failure.category === "CAPACITY" && fallback;
+        // Spend the reservation only before any tool runs and honor upstream backoff.
+        if (canSwitch && input.toolChoice === "required" && exhausted && firstTurnDeadline > deadline &&
+            delay + 1000 < firstTurnDeadline - Date.now()) {
+          if (timer) clearTimeout(timer);
+          controller.abort();
+          const event: ProviderEvent = {
+            event: "provider_failure", model, attempt, category: failure.category, decision: "fallback",
+            ...(failure.status === undefined ? {} : { status: failure.status }),
+            ...(delay > 0 ? { waitMs: Math.ceil(delay) } : {}),
+          };
+          observe(session, event);
+          if (failure.category === "CAPACITY") observe(session, { ...event, event: "primary_model_unavailable" });
+          if (delay > 0) await new Promise<void>(resolve => { backoffTimer = setTimeout(resolve, Math.ceil(delay)); });
+          const remaining = firstTurnDeadline - Date.now();
+          if (remaining <= 0) throw new AgentProviderError("LLM_TIMEOUT");
+          session.model = fallbackModel;
+          session.fallbackUsed = true;
+          observe(session, { ...event, event: "fallback_model_used", model: fallbackModel, attempt: 1 });
+          return completeAgentTurn({ ...input, timeoutMs: remaining, session });
+        }
         // Leave at least one second for the next attempt. Never shorten Retry-After
         // or bypass it by immediately sending to another model on the same account.
         const fits = delay + 1000 < deadline - Date.now();

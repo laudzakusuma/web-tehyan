@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
 import { z } from "zod";
 import { agentUIActionSchema, type AgentUIAction, type ExecutionEvent } from "@/lib/chat-contract";
-import { completeAgentTurn, createProviderSession, AgentProviderError, PROVIDER_TIMEOUT_MS } from "./provider";
+import { completeAgentTurn, createProviderSession, AgentProviderError, FIRST_TURN_TIMEOUT_MS, PROVIDER_TIMEOUT_MS } from "./provider";
 import { SYSTEM_PROMPT } from "./prompt";
 import { toolDefs, runTool } from "./tools";
 
@@ -96,7 +96,7 @@ export async function runAgent(history: ChatMsg[], ctx: AgentContext): Promise<A
       tools: toolDefs,
       // A tool is required even for the first reply: business answers never skip retrieval.
       toolChoice: finalOnly ? "none" : round === 0 ? "required" : "auto",
-      timeoutMs: Math.min(PROVIDER_TIMEOUT_MS, deadline - Date.now()),
+      timeoutMs: Math.min(round === 0 ? FIRST_TURN_TIMEOUT_MS : PROVIDER_TIMEOUT_MS, deadline - Date.now()),
       session: providerSession,
     }), deadline);
 

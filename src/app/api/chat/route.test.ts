@@ -65,4 +65,16 @@ describe("chat HTTP boundary", () => {
       expect(JSON.stringify(log.mock.calls)).not.toContain("password");
     } finally { log.mockRestore(); }
   });
+
+  it("returns safe instructions for continuing a timed-out turn", async () => {
+    const log = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      vi.mocked(sendChatMessage).mockRejectedValueOnce(Object.assign(new Error("private provider response"), { code: "LLM_TIMEOUT" }));
+      const response = await POST(request({ requestId: randomUUID(), message: "Menu" }));
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(await response.json()).toEqual({ code: "LLM_TIMEOUT", error: expect.stringContaining("Coba lagi") });
+      expect(JSON.stringify(log.mock.calls)).not.toContain("private provider response");
+    } finally { log.mockRestore(); }
+  });
 });

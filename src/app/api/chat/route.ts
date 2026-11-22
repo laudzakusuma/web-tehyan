@@ -6,6 +6,8 @@ import { ChatServiceError, getChatHistory, sendChatMessage } from "@/server/serv
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Allow the 45-second agent deadline plus request parsing and persistence.
+export const maxDuration = 60;
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
@@ -23,6 +25,7 @@ function failure(error: unknown, requestId: string) {
   // No exception objects, provider bodies, message content or cookies in logs.
   console.warn("[chat]", { requestId, code: safeCode });
   const text = safeCode === "LLM_NOT_CONFIGURED" ? "Tanya Tehyan belum dikonfigurasi. Layanan chat belum tersedia." :
+    safeCode === "LLM_TIMEOUT" ? "Tanya Tehyan butuh waktu lebih lama. Pilih Coba lagi untuk melanjutkan pesanmu." :
     "Maaf, Tanya Tehyan lagi belum bisa mengakses sistem. Coba lagi sebentar ya.";
   return json({ error: text, code: safeCode }, 503);
 }
