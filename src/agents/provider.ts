@@ -1,5 +1,6 @@
 import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from "openai";
 import { z } from "zod";
+import { boundedArray } from "@/lib/bounded-array";
 
 export const PROVIDER_TIMEOUT_MS = 12_000;
 export const PROVIDER_MAX_ATTEMPTS = 3;
@@ -85,7 +86,7 @@ const toolCallSchema = z.object({
 const providerMessageSchema = z.object({
   role: z.literal("assistant"),
   content: z.string().max(64_000).nullable().optional(),
-  tool_calls: z.array(toolCallSchema).max(64).optional(),
+  tool_calls: boundedArray(toolCallSchema, 64).optional(),
 });
 
 export type ProviderMessage = z.infer<typeof providerMessageSchema>;

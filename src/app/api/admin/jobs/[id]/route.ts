@@ -1,3 +1,5 @@
+import { bodyReadStatus, readJsonBody } from "@/server/request-body";
+
 import {
   NextRequest,
   NextResponse,
@@ -183,14 +185,14 @@ export async function PATCH(
   let body: unknown;
 
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonBody(req, 128 * 1024);
+  } catch (error) {
     return json(
       {
         error:
           "Data lowongan tidak valid.",
       },
-      400,
+      bodyReadStatus(error),
     );
   }
 

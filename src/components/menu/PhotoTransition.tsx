@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
+import { motionDuration, motionEase } from "@/components/ui/motion";
 import useReducedMotionPreference from "@/components/ui/useReducedMotionPreference";
 import ProductPhoto from "./ProductPhoto";
 import type { ProductVisual } from "@/lib/product-photography";
@@ -33,7 +34,7 @@ export default function PhotoTransition({ product, sizes, priority = false }: {
     {layers.map((layer, index) => <motion.div key={layer.key} className="photo-layer photo-rendered"
       aria-hidden={index !== layers.length - 1 || undefined}
       initial={index === 0 || reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}
-      transition={{ duration: reduceMotion ? 0 : 0.8, ease: [0.2, 0, 0, 1] }}
+      transition={{ duration: reduceMotion ? 0 : motionDuration.image, ease: motionEase }}
       onAnimationComplete={() => {
         // A fully opaque layer can replace everything beneath it, even during rapid retargeting.
         setLayers(previous => {

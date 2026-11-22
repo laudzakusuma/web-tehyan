@@ -1,5 +1,158 @@
 # Development Log
 
+## 2026-11-22 — Production Administrator Rotation Gate
+
+- Verified the Neon Production catalog contains exactly three demo products, two demo outlets, and one administrator. The four existing migrations remain applied. No seed or schema change was needed.
+- Added a private rotation mode to the guarded administrator bootstrap helper. It requires the existing administrator email and a new masked password, writes only the password hash using the existing scrypt code, and rejects reuse of the current password. The operation requires exactly one administrator and preserves the account ID.
+- Confirmed that Vercel Production has the database, Gemini, and signing configuration. `ADMIN_BOOTSTRAP_PASSWORD` is absent. Rotated `ADMIN_SESSION_SECRET` under the existing Production-only sensitive setting and verified it through metadata.
+- TypeScript passed. Vitest passed all 204 tests in 28 files. The full `npm run build` passed in the isolated source copy with Prisma 6.19.3 and Next.js 15.5.29 after the default sandbox blocked a Next.js worker with `EPERM`.
+- Release requires a successful private password rotation and verification that the same administrator now has a different scrypt hash. The live smoke test runs after the Git-backed deployment is READY.
+
+## 2026-11-22 — Production Demo Release Hardening
+
+- Ran the authorized insert-only seed on the verified direct Neon Production host. It created three categories, three demo drinks, and two demo outlets.
+- Audited JSON mutations for GHSA-mrhx-c7xc-m3w5. Public checkout had a collection validator with no pre-parse byte cap. Added streamed request limits of 8–128 KiB according to endpoint, five-second timeouts, and a length check before Zod validates checkout items, chat envelopes, or Gemini tool calls. Existing authentication and rate-limit checks precede body parsing.
+- HTTP tests verify that oversized checkout bodies and oversized collections are rejected without reaching the order service. A schema test verifies that an oversized collection does not invoke item validation. The project suite passed 204 tests.
+- Zod 3 remains in the dependency tree. The mitigations address the reachable collection path observed in the audit without an SDK migration. Existing per-instance rate limits remain a limit under sustained high traffic.
+- Release verification and Production smoke testing are tracked separately from catalog initialization. The administrator uses the approved private terminal procedure in [Production Demo](PRODUCTION-DEMO.md).
+
+## 2026-11-22 — Production Demo Release Review
+
+### Completed
+
+- Confirmed presence of `LLM_API_KEY`, `ADMIN_SESSION_SECRET`, and `CAREER_TRACKING_SECRET` in Vercel Production. Production metadata including shared settings did not list `ADMIN_BOOTSTRAP_PASSWORD`. Presence and equality checks found two loaders of the same local dotenv entry: Vercel CLI when run from the repository root, and the workspace-generated Prisma Client on import even from an isolated operations folder. The procedure uses an isolated operations folder plus the clean source copy and its separately generated Prisma Client. No values appeared in the report.
+- Added a separate seed for three labeled demo drinks with existing illustrations and two labeled fictional outlets. Unique slugs and insert-only operations preserve existing rows. A transaction groups the inserts. The direct Neon endpoint must match the operator's explicit host and use TLS.
+- Prepared a first-admin procedure with a masked PowerShell prompt, stdin transfer, existing scrypt hashing, and a serializable transaction that refuses existing admins or matching emails. Production seed and admin bootstrap are pending review.
+- Reviewed the release diff. Next.js and its matching binaries and tooling move from 15.5.27 to 15.5.29. Git ignores dotenv variants and project metadata while retaining `.env.example`. Motion changes remain a separately reviewable set.
+- Confirmed Vercel Standard Protection and the assigned Production domain `web-tehyan.vercel.app`. Deployment listing is empty. Anonymous public access will be verified after release.
+
+### Verification and remaining risk
+
+- TypeScript passed. A full test run initially collected duplicate tests in the scratch build, so Vitest now excludes `.qa`. The scoped project suite passed all 201 tests. The isolated `npm run build` passed with Prisma 6.19.3 and Next.js 15.5.29.
+- A local PostgreSQL transaction verified initial creation, unchanged existing prices on a second run, and no duplicated hours. The transaction rolled back. The PowerShell helper was syntax checked without executing bootstrap.
+- High runtime finding: Zod 3.25.76 is flagged for resource exhaustion on oversized collections. OpenAI is flagged through its Zod dependency. The patched version is in the Zod 4 series. The audit identified no remaining direct high or critical Next.js advisory at 15.5.29.
+- Build/CLI findings: Next's nested PostCSS is flagged high, and Prisma CLI config transitives Effect and DeepmergeTS are flagged high. Test/development findings include critical Vitest and Tinypool and high Vite. Keep those build and test surfaces private.
+- Schema, migrations, and original development seed were untouched. See [Production Demo](PRODUCTION-DEMO.md) for the exact seed and admin procedure and remaining approvals.
+
+## 2026-11-22 — Vercel Production Readiness
+
+### Goal
+
+Prepare the existing application and a dedicated managed PostgreSQL database for a reviewed release from GitHub `main`.
+
+### Completed
+
+- Created and linked `laudzas-projects/web-tehyan` (`prj_5cBXP6OLRBX3V7d8hXVOIME33VEg`). Confirmed the connected repository, `main` branch tracking, Next.js preset, repository root, Node.js 24.x, and `npm run build`.
+- Provisioned `web-tehyan-postgres` on Neon Free in Singapore and connected it to Production. Verified the TLS-enabled direct endpoint and empty schema before applying the four existing migrations. Prisma reported the schema up to date afterward. A separate pooled connection successfully read the migrated database.
+- Configured `LLM_BASE_URL`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, and `CHAT_DEMO_MODE`. Neon supplied `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and its integration aliases. The migration used the direct connection as the Prisma CLI's process-scoped `DATABASE_URL`, so the schema and local configuration needed no changes.
+- Updated Next.js from 15.5.27 to 15.5.29 to clear the critical Next.js advisory and other Next.js advisories reported by the production audit. Extended `.gitignore` to cover environment variants and Vercel workspace metadata. Source changes are pending the user's review, including the existing uncommitted motion work. The admin redirect is already committed in `723e074`.
+
+### Verification
+
+- TypeScript passed and 201 tests passed with the local test database. Prisma schema validation passed.
+- The working-directory build hit a Windows Prisma DLL lock. An isolated source copy without dotenv files passed clean `npm ci` and the full `npm run build` with Prisma 6.19.3 and Next.js 15.5.29.
+- Production deployment listing was empty. Live URL, deployment ID, READY status, and deployed smoke tests are pending.
+
+### Security and Data Integrity
+
+- The fresh production database has zero products, outlets, or admins. Seeding the development fixture would publish sample business content and could replace admin passwords, grant admin roles, and overwrite prices and product details. No seed or admin bootstrap was run. If a local placeholder admin was exposed or copied to another environment, rotate that password and the signing secret to invalidate existing sessions.
+- Admin cookies are signed, HTTP-only, secure in production, and checked against the database role. Mutation routes retain existing origin and rate-limit checks. Rate limits use per-process memory and do not coordinate across Vercel instances.
+- The follow-up dependency audit reported remaining high findings in Zod and build/CLI dependencies including PostCSS and Prisma transitives. The Zod finding concerns resource exhaustion on oversized collections. Existing request bounds vary by route and should be reviewed before treating the site as production hardened. Prisma and Zod major upgrades were deferred.
+- Production project environment metadata has no `ADMIN_BOOTSTRAP_PASSWORD` entry, but the local `vercel env run` probe reported that name present in its child process. Its origin is unverified. Check inherited/shared configuration before admin bootstrap and do not consume that value.
+
+### Remaining Work
+
+- Privately configure `LLM_API_KEY`, `ADMIN_SESSION_SECRET`, and `CAREER_TRACKING_SECRET` for Production. Use distinct production secrets. `ADMIN_EMAIL` and `ADMIN_NAME` are bootstrap inputs only.
+- Confirm the initial catalog and privately provide a fresh administrator password for a controlled bootstrap. Review the release diff before any commit or push. Validate a preview using separate data and credentials when available, then release through Git `main` and verify the resulting deployment.
+
+## 2026-11-22 — Isolated Browser Motion QA
+
+### Goal
+
+Review the previously implemented motion and interaction changes at desktop, tablet and mobile widths using an isolated browser profile, without accessing existing browser sessions.
+
+### Implemented / Verified
+
+- Started headless Chrome via the environment's existing Playwright using a new temporary browser context. No project package was installed and no personal browser profile, cookies or tabs were accessed. Used the user's local `http://localhost:3000` development server.
+- Checked home, menu, outlet, promo, journal, cerita, teh-kami, karier and keranjang at 1440, 768 and 390 px; checked a product detail at all three widths. Measured no document-level horizontal overflow or broken visible images in those checks.
+- Verified hero CSS stagger timings, scroll reveal, and image rotation. A fixed 5.7-second wait sometimes ran before the carousel had hydrated; a subsequent event-based check passed. This is not a frame-rate benchmark.
+- Verified desktop navigation hover, keyboard Enter and Escape, focus restoration; tablet/mobile menu open and close; and visible keyboard focus. Verified product hover transform, category filter, cart addition and quantity 1 → 2 → 1 in an isolated browser context.
+- Verified chat panel open/close and focus return at all three widths, plus user-message entrance and loading feedback on mobile. No fake chat responses or processing delays were introduced.
+- With `prefers-reduced-motion: reduce`, confirmed hero entrance animation is absent and the hero and chat panel remain visible without translation. Initial desktop homepage CLS was approximately 0.00006; other sampled page loads reported zero. This limited observation is not a production performance audit.
+- No application code needed changing as a result of these checks. Browser scripts and screenshots are temporary artifacts under ignored `.qa/motion-visual` and `.qa/motion-*.cjs`.
+
+### Findings / Limitations
+
+- Console reports a pre-existing 404 for `/favicon.ico`, which is absent in the repository. It does not block the motion interactions, but console QA is not fully clean.
+- One tablet pass logged a hydration-attribute warning. It did not recur in later passes, including a separate navigation sweep, so its source remains unconfirmed; do not claim hydration is conclusively clean.
+- The existing `/karier` page has no `<h1>`; its source already lacked one before the motion change. This is an accessibility finding, not a change made during this QA.
+- Animations were observed in headless Chrome and checked through computed styles/screenshots. Frame-rate, physical-device rendering and exhaustive screen-reader behavior were not measured.
+
+### Commands / Verification
+
+- `npx.cmd tsc --noEmit --incremental false`: PASS.
+- `npm.cmd test`: **201 passed, 0 skipped, 0 failed**.
+- `npm.cmd run build` with isolated `TEHYAN_DIST_DIR=.next-ai-qa`: sandbox attempt failed with `ECONNREFUSED` reaching Prisma's download service. An authorized retry outside the sandbox failed at Prisma Client generation with Windows `EPERM` renaming the query-engine DLL while the local development server was running. The server was left running; no permissions were changed. The prior production build passed before this QA and no application code changed since, but the requested fresh build remains blocked.
+
+### Database / Security
+
+No schema, migration, seed, or business logic changes. The browser cart used temporary local storage. A test chat message was submitted through the existing application; no credentials or private browser sessions were inspected.
+
+### Remaining Work / Recommended Next Task
+
+After the user stops their local development server, rerun `npm run build` from the project terminal. Investigate the intermittent hydration warning, add the missing favicon, and address the pre-existing career heading separately if desired.
+
+## 2026-11-22 — Premium Motion and Micro-Interactions
+
+### Goal
+
+Refine the existing Tehyan experience with restrained motion and responsive interaction feedback while preserving its content, layout, features, and server boundaries.
+
+### Implemented
+
+- Added shared easing and timing values for Motion and CSS. The hero enters in a short editorial sequence, including its existing photography, without splitting accessible heading text.
+- Refined navigation hover and active indicators, dropdown keyboard dismissal, mobile menu scrolling, and reduced-motion timing.
+- Added subtle feedback to product photography, filters, cart buttons, menu results, and existing editorial page introductions.
+- Animated the existing chat panel opening and closing, messages, and loading state; exiting chat is inert and hidden from assistive technology. Existing focus return and chat logic remain in place.
+- Kept animations to transforms and opacity where possible, scoped hover scaling to capable devices, and disabled the new CSS animations for reduced-motion users.
+
+### Files Changed
+
+- `src/styles/tokens.css`, `src/app/globals.css`, `src/components/ui/motion.ts`, `src/components/ui/Reveal.tsx`
+- `src/components/home/Hero.tsx`, `src/components/home/HeroVisual.tsx`, `src/components/site/Header.tsx`
+- `src/components/menu/MenuList.tsx`, `src/components/menu/PhotoTransition.tsx`, `src/features/cart/AddToCartButton.tsx`, `src/features/chat/ChatPanel.tsx`
+- `src/app/menu/page.tsx`, `src/app/outlet/page.tsx`, `src/app/keranjang/page.tsx`, `src/app/promo/page.tsx`, `src/app/journal/page.tsx`, `src/app/cerita/page.tsx`, `src/app/teh-kami/page.tsx`, `src/app/karier/page.tsx`
+- `docs/DEVLOG.md`
+
+### Database Changes
+
+Schema, migrations, and seed: none.
+
+### Architecture Decisions
+
+- Reused the installed `motion/react` integration and existing Reveal/photo components; CSS handles lightweight entrances without turning server-rendered pages into client components.
+- No continuous decorative animation or parallax was added. Reduced-motion preferences disable new CSS entrances and shorten interactive Motion transitions.
+- Checkout, administration, tracking, and long-form content retain their existing behavior; motion is intentionally restrained in task-focused workflows.
+
+### Commands Run / Verification
+
+- `npx.cmd tsc --noEmit --incremental false`: passed after the final source changes.
+- `npm.cmd test`: 201 passed, 0 skipped, 0 failed after the final source changes.
+- `npm.cmd run build`: passed after the final source changes, including Prisma Client generation and Next.js production build.
+- Visual QA: a local dev-server attempt failed in the sandbox with `spawn EPERM`. Automatic review rejected inspection of an existing Chrome window because it showed an unrelated page that might contain private information. Desktop/mobile and reduced-motion browser checks remain unverified.
+
+### Security / Data Integrity
+
+No authentication, authorization, database schema, checkout calculation, cart state, or AI orchestration logic changed. No secrets were inspected or modified.
+
+### Known Issues / Remaining Work
+
+Browser-based visual QA for desktop, mobile, and reduced motion remains outstanding. Manual inspection should include chat focus restoration, navigation exit states, and filter transitions.
+
+### Recommended Next Task
+
+Review the motion in an isolated local browser preview at desktop and mobile sizes, including reduced-motion settings.
+
 Status terbaru: PostgreSQL sudah pulih dan seluruh 161 tes lulus. Penerimaan Gemini masih terhalang HTTP 503/429; lihat [Gemini + PostgreSQL Live Acceptance](#gemini--postgresql-live-acceptance) yang ditambahkan di akhir dokumen. Catatan datasource hilang di bawah merupakan hasil sesi sebelumnya.
 
 ## Gemini Live Acceptance Test

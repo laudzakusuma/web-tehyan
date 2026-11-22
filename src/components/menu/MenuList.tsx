@@ -7,14 +7,14 @@ import ProductPhoto from "./ProductPhoto";
 type Products = Awaited<ReturnType<typeof listProducts>>;
 
 export default function MenuList({ products }: { products: Products }) {
-  if (products.length === 0) return <div className="menu-empty">
+  if (products.length === 0) return <div className="menu-empty motion-content-enter">
     <p className="font-display text-2xl">Belum ada menu yang cocok.</p>
     <p className="mt-3 text-sm text-seduh-soft">Coba kata kunci lain atau pilih kategori Semua.</p>
     <Link href="/menu" className="mt-5 inline-flex min-h-11 items-center text-genteng underline underline-offset-4">Lihat semua menu</Link>
   </div>;
   return <MenuExperience key={products.map(product => product.id).join(":")}
     products={products.map(({ id, name, imageUrl }) => ({ id, name, imageUrl }))}>
-    <ul className="menu-narrative">
+    <ul className="menu-narrative motion-content-enter">
       {products.map((product, index) => <li key={product.id}>
         <article className="menu-entry" data-menu-product={product.id} data-active={index === 0}>
           <div className="menu-entry-photo"><ProductPhoto product={product} sizes="(min-width: 1024px) and (min-height: 640px) 88px, (min-width: 768px) 45vw, calc(100vw - 32px)" /></div>

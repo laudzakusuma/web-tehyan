@@ -9,6 +9,7 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { useCartStore } from "@/features/cart/store";
+import { motionDuration, motionEase } from "@/components/ui/motion";
 
 const primaryNav = [
   { href: "/menu", label: "Menu" },
@@ -87,7 +88,8 @@ export default function Header() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative px-4 py-3 text-sm"
+                aria-current={active ? "page" : undefined}
+                className="nav-link relative px-4 py-3 text-sm"
               >
                 <span
                   className={
@@ -104,8 +106,8 @@ export default function Header() {
                     layoutId="desktop-nav-active"
                     className="absolute inset-x-4 bottom-1 h-px bg-genteng"
                     transition={{
-                      duration: reduceMotion ? 0 : 0.25,
-                      ease: [0.2, 0, 0, 1],
+                      duration: reduceMotion ? 0 : motionDuration.interaction,
+                      ease: motionEase,
                     }}
                   />
                 )}
@@ -118,6 +120,15 @@ export default function Header() {
             className="relative"
             onMouseEnter={() => setExploreOpen(true)}
             onMouseLeave={() => setExploreOpen(false)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setExploreOpen(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setExploreOpen(false);
+                event.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();
+              }
+            }}
           >
             <button
               type="button"
@@ -129,7 +140,7 @@ export default function Header() {
 
               <motion.span
                 animate={{ rotate: exploreOpen ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
                 aria-hidden
                 className="text-xs"
               >
@@ -151,7 +162,7 @@ export default function Header() {
                       ? { opacity: 0 }
                       : { opacity: 0, y: 6 }
                   }
-                  transition={{ duration: 0.18 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.18 }}
                   className="absolute left-0 top-full w-56 pt-2"
                 >
                   <div className="border border-pasir bg-kertas p-2 shadow-[var(--shadow-float)]">
@@ -206,6 +217,7 @@ export default function Header() {
           className="relative z-50 flex h-11 w-11 flex-col items-center justify-center gap-[5px] lg:hidden"
         >
           <motion.span
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
             animate={
               mobileOpen
                 ? { rotate: 45, y: 7 }
@@ -215,11 +227,13 @@ export default function Header() {
           />
 
           <motion.span
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
             animate={{ opacity: mobileOpen ? 0 : 1 }}
             className="block h-px w-6 bg-seduh"
           />
 
           <motion.span
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
             animate={
               mobileOpen
                 ? { rotate: -45, y: -5 }
@@ -246,10 +260,10 @@ export default function Header() {
                 : { opacity: 0, y: -8 }
             }
             transition={{
-              duration: 0.25,
-              ease: [0.2, 0, 0, 1],
+              duration: reduceMotion ? 0 : motionDuration.interaction,
+              ease: motionEase,
             }}
-            className="border-t border-pasir bg-gading lg:hidden"
+            className="max-h-[calc(100dvh-72px)] overflow-y-auto overscroll-contain border-t border-pasir bg-gading lg:hidden"
           >
             <nav
               aria-label="Navigasi mobile"

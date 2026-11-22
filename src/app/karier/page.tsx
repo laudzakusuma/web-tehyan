@@ -27,7 +27,7 @@ export default async function CareersPage() {
 
   return (
     <main>
-      <section className="mx-auto max-w-[1200px] px-4 pb-16 pt-16 md:px-10 md:pb-24 md:pt-24">
+      <section className="motion-content-enter mx-auto max-w-[1200px] px-4 pb-16 pt-16 md:px-10 md:pb-24 md:pt-24">
         <p className="text-xs uppercase tracking-[0.24em] text-genteng">
           Karier
         </p>

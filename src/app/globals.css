@@ -4,6 +4,37 @@
 @tailwind utilities;
 body { background: var(--gading); color: var(--seduh); line-height: var(--leading-body); }
 
+/* Entrances enhance server-rendered content; the final state is readable without JS. */
+@keyframes tehyan-enter {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes tehyan-image-enter {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-intro { animation: tehyan-enter var(--dur-entrance) var(--ease) both; }
+  .hero-intro-title { animation-delay: var(--motion-stagger); }
+  .hero-intro-description { animation-delay: calc(var(--motion-stagger) * 2); }
+  .hero-intro-actions { animation-delay: calc(var(--motion-stagger) * 3); }
+  .hero-intro-image { animation-name: tehyan-image-enter; animation-delay: var(--motion-stagger); }
+  .motion-content-enter, .chat-message, .chat-status { animation: tehyan-enter 420ms var(--ease) both; }
+  .motion-press { transition: transform var(--dur-fast) var(--ease), background-color var(--dur-base) var(--ease), color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease); }
+  .motion-press:active:not(:disabled) { transform: scale(0.98); }
+  .menu-categories a { transition: color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease); }
+  .featured-entry h3 a, .menu-product-name a { transition: color var(--dur-base) var(--ease); }
+  .nav-link::after { content: ""; position: absolute; inset-inline: 1rem; bottom: 0.25rem; height: 1px; background: var(--genteng); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-base) var(--ease); }
+  .nav-link:hover::after, .nav-link:focus-visible::after { transform: scaleX(1); }
+  .menu-entry-photo, .product-detail-photo, .featured-thumbnail { overflow: hidden; }
+  .menu-entry-photo img, .product-detail-photo img, .featured-thumbnail img { transition: transform 600ms var(--ease); }
+  @media (hover: hover) {
+    .menu-entry:hover .menu-entry-photo img, .menu-entry:focus-within .menu-entry-photo img,
+    .featured-entry:hover .featured-thumbnail img, .featured-entry:focus-within .featured-thumbnail img,
+    .product-detail-photo:hover img { transform: scale(1.025); }
+  }
+}
+
 .hero-composition { display: grid; gap: 1.5rem; max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem; align-items: center; }
 .hero-copy { min-width: 0; }
 .hero-photo { position: relative; width: 100%; aspect-ratio: 3 / 2; background: var(--pasir); }

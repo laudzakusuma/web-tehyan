@@ -1,3 +1,5 @@
+import { bodyReadStatus, readJsonBody } from "@/server/request-body";
+
 import {
   NextRequest,
   NextResponse,
@@ -86,14 +88,14 @@ export async function POST(
 
   try {
     body =
-      await req.json();
-  } catch {
+      await readJsonBody(req, 24 * 1024);
+  } catch (error) {
     return json(
       {
         error:
           "Data lamaran tidak valid.",
       },
-      400,
+      bodyReadStatus(error),
     );
   }
 

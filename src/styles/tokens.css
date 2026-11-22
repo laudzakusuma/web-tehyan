@@ -50,9 +50,10 @@
   --control-sm: 36px; --control-md: 44px; /* 44px = minimum touch target */
   --icon-sm: 16px; --icon-md: 20px; --icon-lg: 24px;
 
-  /* Motion: state feedback only */
+  /* Motion: short interaction feedback and a slower editorial entrance. */
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --dur-fast: 120ms; --dur-base: 200ms;
+  --dur-fast: 160ms; --dur-base: 220ms; --dur-entrance: 700ms;
+  --motion-stagger: 90ms;
 }
 
 /* Breakpoints: sm 480 · md 768 · lg 1024 · xl 1280 */

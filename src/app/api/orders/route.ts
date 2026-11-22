@@ -1,3 +1,5 @@
+import { bodyReadStatus, readJsonBody } from "@/server/request-body";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { createOrderSchema } from "@/lib/order-contract";
@@ -106,13 +108,13 @@ export async function POST(req: NextRequest) {
   let body: unknown;
 
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonBody(req, 48 * 1024);
+  } catch (error) {
     return json(
       {
         error: "Data checkout tidak valid.",
       },
-      400,
+      bodyReadStatus(error),
     );
   }
 

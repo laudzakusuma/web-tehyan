@@ -16,7 +16,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
     return params.size ? `/menu?${params}` : "/menu";
   }
   return <div className="mx-auto max-w-[1200px] px-4 py-10 md:px-10 md:py-12">
-    <div className="menu-heading">
+    <div className="menu-heading motion-content-enter">
       <div>
         <p className="mb-3 text-sm text-daun">Dari dapur Tehyan</p>
         <h1 className="font-display text-4xl font-light md:text-5xl">Menu</h1>

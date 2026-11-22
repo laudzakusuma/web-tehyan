@@ -24,7 +24,7 @@ export default async function JournalPage() {
 
   return (
     <main>
-      <section className="mx-auto max-w-[1200px] px-4 pb-14 pt-16 md:px-10 md:pb-20 md:pt-24">
+      <section className="motion-content-enter mx-auto max-w-[1200px] px-4 pb-14 pt-16 md:px-10 md:pb-20 md:pt-24">
         <p className="text-xs uppercase tracking-[0.24em] text-genteng">
           Journal Tehyan
         </p>

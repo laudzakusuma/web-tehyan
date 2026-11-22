@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { motion } from "motion/react";
 import useReducedMotionPreference from "./useReducedMotionPreference";
+import { motionDuration, motionEase } from "./motion";
 
 type RevealProps = {
   children: ReactNode;
@@ -38,9 +39,9 @@ export default function Reveal({
         amount: 0.2,
       }}
       transition={{
-        duration: reduceMotion ? 0 : 0.7,
+        duration: reduceMotion ? 0 : motionDuration.reveal,
         delay,
-        ease: [0.2, 0, 0, 1],
+        ease: motionEase,
       }}
       className={`motion-reveal ${className}`}
     >

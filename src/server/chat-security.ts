@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { readJsonBody } from "./request-body";
 
 export const CHAT_COOKIE = "tehyan-chat";
 export const CHAT_COOKIE_OPTIONS = {
@@ -41,38 +42,6 @@ export function rateAllowed(key: string, limit: number, now = Date.now()) {
   return true;
 }
 
-export async function readChatBody(req: Request): Promise<unknown> {
-  if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) throw new Error("INVALID_BODY");
-  if (Number(req.headers.get("content-length")) > 8192) throw new Error("BODY_TOO_LARGE");
-  const reader = req.body?.getReader();
-  if (!reader) throw new Error("INVALID_BODY");
-  const chunks: Uint8Array[] = [];
-  let bytes = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      (async () => {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          bytes += value.byteLength;
-          if (bytes > 8192) {
-            await reader.cancel();
-            throw new Error("BODY_TOO_LARGE");
-          }
-          chunks.push(value);
-        }
-        return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      })(),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
-          reject(new Error("BODY_TIMEOUT"));
-          void reader.cancel().catch(() => undefined);
-        }, 5000);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-    reader.releaseLock();
-  }
+export function readChatBody(req: Request) {
+  return readJsonBody(req, 8 * 1024);
 }

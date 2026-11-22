@@ -32,13 +32,13 @@ export default function AddToCartButton({ productId, name, price, available = tr
       type="button"
       onClick={add}
       disabled={!available}
-      className={`inline-flex h-10 items-center justify-center rounded-field border px-4 text-sm transition-colors ${
+      className={`motion-press inline-flex h-10 items-center justify-center rounded-field border px-4 text-sm transition-colors ${
         available
           ? "border-genteng text-genteng hover:bg-genteng hover:text-kertas"
           : "cursor-not-allowed border-pasir text-seduh-soft opacity-60"
       } ${className}`}
     >
-      {available ? (added ? "Masuk keranjang" : "+ Tambah") : "Sedang habis"}
+      <span aria-live="polite">{available ? (added ? "Masuk keranjang" : "+ Tambah") : "Sedang habis"}</span>
     </button>
   );
 }

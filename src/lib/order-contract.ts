@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { boundedArray } from "./bounded-array";
 
 export const checkoutItemSchema = z.object({
-  productId: z.string().min(1),
+  productId: z.string().min(1).max(100),
   quantity: z.number().int().min(1).max(20),
 });
 
@@ -34,10 +35,7 @@ export const createOrderSchema = z.object({
     .optional()
     .nullable(),
 
-  items: z
-    .array(checkoutItemSchema)
-    .min(1, "Keranjang kosong.")
-    .max(50),
+  items: boundedArray(checkoutItemSchema, 50).refine(items => items.length > 0, "Keranjang kosong."),
 }).superRefine((data, ctx) => {
   if (data.type === "DELIVERY") {
     ctx.addIssue({

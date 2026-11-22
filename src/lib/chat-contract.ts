@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { boundedArray } from "./bounded-array";
 
 export const chatRequestSchema = z.object({
   conversationId: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -29,7 +30,7 @@ export const executionEventSchema = z.object({
 }).strict();
 
 // Unsupported/malformed actions are dropped individually, never executed dynamically.
-const actionsSchema = z.array(z.unknown()).max(12).transform((actions) =>
+const actionsSchema = boundedArray(z.unknown(), 12).transform((actions) =>
   actions.flatMap((action) => {
     const result = agentUIActionSchema.safeParse(action);
     return result.success ? [result.data] : [];
@@ -41,16 +42,16 @@ export const chatResponseSchema = z.object({
   requestId: z.string().uuid(),
   reply: z.string().min(1).max(6000),
   actions: actionsSchema,
-  events: z.array(executionEventSchema).max(50).optional(),
+  events: boundedArray(executionEventSchema, 50).optional(),
 });
 
 export const chatHistorySchema = z.object({
   conversationId: z.string().regex(/^[a-f0-9]{64}$/),
-  messages: z.array(z.object({
+  messages: boundedArray(z.object({
     id: z.string(),
     role: z.enum(["user", "assistant"]),
     content: z.string().max(6000),
-  })).max(40),
+  }), 40),
   pendingRequest: z.object({ requestId: z.string().uuid(), message: z.string().max(1000) }).optional(),
 });
 

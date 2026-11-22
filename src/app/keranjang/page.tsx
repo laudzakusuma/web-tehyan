@@ -14,7 +14,7 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-[960px] px-4 py-12 md:px-10 md:py-16">
-      <div className="flex items-end justify-between gap-4 border-b border-pasir pb-5">
+      <div className="motion-content-enter flex items-end justify-between gap-4 border-b border-pasir pb-5">
         <div>
           <h1 className="font-display text-4xl font-light">Keranjang</h1>
           <p className="mt-2 text-sm text-seduh-soft">Pesanan tersimpan di perangkat ini.</p>
@@ -50,14 +50,14 @@ export default function CartPage() {
                     type="button"
                     onClick={() => setQuantity(item.key, item.quantity - 1)}
                     aria-label={`Kurangi ${item.name}`}
-                    className="h-10 w-10 rounded-field border border-pasir hover:border-seduh"
+                    className="motion-press h-10 w-10 rounded-field border border-pasir hover:border-seduh"
                   >−</button>
                   <span className="min-w-8 text-center tabular-nums" aria-label={`Jumlah ${item.quantity}`}>{item.quantity}</span>
                   <button
                     type="button"
                     onClick={() => setQuantity(item.key, item.quantity + 1)}
                     aria-label={`Tambah ${item.name}`}
-                    className="h-10 w-10 rounded-field border border-pasir hover:border-seduh"
+                    className="motion-press h-10 w-10 rounded-field border border-pasir hover:border-seduh"
                   >+</button>
                   <button type="button" onClick={() => removeItem(item.key)} className="ml-3 text-sm text-seduh-soft underline underline-offset-4 hover:text-genteng">Hapus</button>
                 </div>

@@ -100,6 +100,18 @@ describe(
       );
     });
 
+    it("rejects streamed bodies above the byte limit before calling the order service", async () => {
+      const response = await POST(request({ ...validOrder, notes: "a".repeat(48 * 1024) }) as never);
+      expect(response.status).toBe(413);
+      expect(mockedCreateOrder).not.toHaveBeenCalled();
+    });
+
+    it("rejects orders with more than 50 items before calling the order service", async () => {
+      const response = await POST(request({ ...validOrder, items: Array.from({ length: 51 }, () => validOrder.items[0]) }) as never);
+      expect(response.status).toBe(400);
+      expect(mockedCreateOrder).not.toHaveBeenCalled();
+    });
+
     it(
       "creates an order using server service",
       async () => {

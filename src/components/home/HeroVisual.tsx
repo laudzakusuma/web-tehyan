@@ -32,7 +32,7 @@ export default function HeroVisual({ products }: { products: ProductVisual[] }) 
 
   const product = products[index] ?? products[0];
   if (!product) return null;
-  return <div ref={root} className="hero-visual">
+  return <div ref={root} className="hero-visual hero-intro hero-intro-image">
     <div className="hero-photo"><PhotoTransition product={product} sizes="(min-width: 1280px) 580px, (min-width: 768px) 48vw, calc(100vw - 32px)" priority /></div>
     <div className="photo-caption"><span>{product.name}</span><div className="flex items-center gap-4">
       <span aria-hidden="true">{String(index + 1).padStart(2, "0")} / {String(products.length).padStart(2, "0")}</span>

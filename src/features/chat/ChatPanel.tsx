@@ -2,10 +2,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import useReducedMotionPreference from "@/components/ui/useReducedMotionPreference";
+import { motionDuration, motionEase } from "@/components/ui/motion";
 import CartAction from "./CartAction";
 import useChat from "./useChat";
 
 const SUGGESTIONS = ["Minuman di bawah 20 ribu", "Apa yang paling laris?", "Outlet di Depok", "Ada promo apa?"];
+
+function ChatSheet({ children, onKeyDown }: { children: React.ReactNode; onKeyDown: React.KeyboardEventHandler<HTMLElement> }) {
+  const present = useIsPresent();
+  const reduceMotion = useReducedMotionPreference();
+  return <motion.section id="tehyan-chat" aria-labelledby="tehyan-chat-title" aria-hidden={!present || undefined} inert={!present || undefined}
+    onKeyDown={onKeyDown}
+    initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+    transition={{ duration: reduceMotion ? 0 : motionDuration.interaction, ease: motionEase }}
+    className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] min-h-0 flex-col rounded-t-panel border border-pasir bg-kertas shadow-[var(--shadow-sheet)] md:inset-x-auto md:bottom-4 md:right-4 md:w-[400px] md:rounded-panel">
+    {children}
+  </motion.section>;
+}
 
 export default function ChatPanel() {
   const [open, setOpen] = useState(false);
@@ -43,16 +59,13 @@ export default function ChatPanel() {
     if (region) region.scrollTop = region.scrollHeight;
   }, [open, chat.messages, chat.busy, chat.error]);
 
-  if (!open) return (
-    <button ref={launcherRef} type="button" onClick={show} aria-expanded={false} aria-controls="tehyan-chat" className="fixed bottom-4 right-4 z-40 h-11 rounded-field bg-seduh px-5 text-gading shadow-[var(--shadow-float)] hover:bg-seduh-soft">
+  return (<>
+    {!open && <button ref={launcherRef} type="button" onClick={show} aria-expanded={false} aria-controls="tehyan-chat" className="motion-press fixed bottom-4 right-4 z-40 h-11 rounded-field bg-seduh px-5 text-gading shadow-[var(--shadow-float)] hover:bg-seduh-soft">
       Tanya Tehyan
-    </button>
-  );
-
-  return (
-    <section id="tehyan-chat" aria-labelledby="tehyan-chat-title" onKeyDown={(event) => {
+    </button>}
+    <AnimatePresence>{open && <ChatSheet key="chat" onKeyDown={(event) => {
       if (event.key === "Escape") { event.stopPropagation(); close(); }
-    }} className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] min-h-0 flex-col rounded-t-panel border border-pasir bg-kertas shadow-[var(--shadow-sheet)] md:inset-x-auto md:bottom-4 md:right-4 md:w-[400px] md:rounded-panel">
+    }}>
       <header className="flex shrink-0 items-start justify-between gap-2 border-b border-pasir p-4">
         <div className="min-w-0">
           <h2 id="tehyan-chat-title" className="font-display text-lg">Tanya Tehyan</h2>
@@ -66,7 +79,7 @@ export default function ChatPanel() {
         ))}</div>}
         <div role="log" aria-label="Percakapan dengan Tanya Tehyan" aria-live="polite" aria-relevant="additions" className="space-y-3">
           {chat.messages.map((message) => (
-            <div key={message.id} className={message.role === "user" ? "ml-6 min-w-0 rounded-card bg-seduh p-3 text-sm text-gading" : "mr-6 min-w-0 rounded-card bg-gading p-3 text-sm"}>
+            <div key={message.id} className={`chat-message ${message.role === "user" ? "ml-6 min-w-0 rounded-card bg-seduh p-3 text-sm text-gading" : "mr-6 min-w-0 rounded-card bg-gading p-3 text-sm"}`}>
               <span className="sr-only">{message.role === "user" ? "Kamu" : "Tanya Tehyan"}: </span>
               <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.content}</p>
               {message.actions?.map((action) => <CartAction key={action.id} action={action} />)}
@@ -81,7 +94,7 @@ export default function ChatPanel() {
             </div>
           ))}
         </div>
-        {chat.busy && <p role="status" className="mt-3 text-sm text-seduh-soft">{chat.ready ? "Sebentar, sedang cek informasinya…" : "Memuat percakapan…"}</p>}
+        {chat.busy && <p role="status" className="chat-status mt-3 text-sm text-seduh-soft">{chat.ready ? "Sebentar, sedang cek informasinya…" : "Memuat percakapan…"}</p>}
         {chat.error && <div className="mt-3 border-l-2 border-genteng pl-3">
           <p role="alert" className="text-sm [overflow-wrap:anywhere]">{chat.error}</p>
           <button type="button" onClick={chat.retry} disabled={chat.busy} className="mt-1 min-h-11 text-sm underline underline-offset-4 disabled:opacity-50">{chat.retryLabel}</button>
@@ -103,6 +116,6 @@ export default function ChatPanel() {
           <Link href="/keranjang" className="inline-flex min-h-8 items-center underline underline-offset-4" onClick={close}>Lihat keranjang</Link>
         </div>
       </form>
-    </section>
-  );
+    </ChatSheet>}</AnimatePresence>
+  </>);
 }

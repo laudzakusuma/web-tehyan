@@ -7,3 +7,6 @@ node_modules
 .next-ai-qa
 .qa
 .env
+.env.*
+!.env.example
+.vercel/
